@@ -40,7 +40,8 @@ async def ocr_worker():
                 "report_id": data.report_id,
                 "user_id": data.user_id,
                 "raw_ocr": result["raw_ocr"],
-                "extracted_data": result["extracted_data"]
+                "extracted_data": result["extracted_data"],
+                'app_class': result["app_class"]
             }
             
             headers = {
