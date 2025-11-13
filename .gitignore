@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+app.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+.pip-cache/
+
+# Testing
+.pytest_cache/
+.coverage
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
