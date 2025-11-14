@@ -1,0 +1,30 @@
+services:
+  ocr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: ocr-ecosteps-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=OCR EcoSteps API 
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G

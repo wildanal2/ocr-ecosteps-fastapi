@@ -54,12 +54,28 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Start the server
- 
+### Development Mode
+
+#### Local Development
+```bash
+python main.py
+```
 
 Or using uvicorn directly:
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Docker Development
+```bash
+# Build and run
+docker-compose up --build
+
+# Run in background
+docker-compose up -d
+
+# Stop containers
+docker-compose down
 ```
 
 ### API Endpoints
@@ -105,6 +121,66 @@ Response:
 Access the auto-generated API documentation:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+## Production Deployment
+
+### Docker Production Deployment
+
+#### Build Production Image
+```bash
+docker build -f Dockerfile.prod -t ocr-ecosteps:latest .
+```
+
+#### Run with Docker Compose (Recommended)
+```bash
+# Start production container
+docker-compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Stop container
+docker-compose -f docker-compose.prod.yml down
+```
+
+#### Run with Docker
+```bash
+docker run -d \
+  --name ocr-ecosteps \
+  -p 8000:8000 \
+  -e APP_NAME="OCR EcoSteps API" \
+  -e APP_VERSION="1.0.0" \
+  --restart unless-stopped \
+  ocr-ecosteps:latest
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| APP_NAME | Application name | OCR EcoSteps API |
+| APP_VERSION | Application version | 1.0.0 |
+| HOST | Server host | 0.0.0.0 |
+| PORT | Server port | 8000 |
+| LOG_LEVEL | Logging level | INFO |
+
+### Production Checklist
+
+- ✅ Use `Dockerfile.prod` for production builds
+- ✅ Configure environment variables
+- ✅ Set up reverse proxy (Nginx/Traefik)
+- ✅ Enable HTTPS/SSL certificates
+- ✅ Configure resource limits
+- ✅ Set up monitoring and logging
+- ✅ Regular backups
+- ✅ Health check endpoints configured
+
+### Scaling
+
+To scale the application:
+```bash
+docker-compose -f docker-compose.prod.yml up -d --scale ocr-api=3
+```
 
 ## Development
 
