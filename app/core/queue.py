@@ -39,9 +39,11 @@ async def ocr_worker():
             payload = {
                 "report_id": data.report_id,
                 "user_id": data.user_id,
+                "img_url": data.s3_url,
                 "raw_ocr": result["raw_ocr"],
                 "extracted_data": result["extracted_data"],
-                'app_class': result["app_class"]
+                'app_class': result["app_class"],
+                "processing_time_ms": result["processing_time_ms"]
             }
             
             headers = {

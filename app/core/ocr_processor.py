@@ -3,6 +3,7 @@ import re
 import easyocr
 import numpy as np
 import httpx
+import time
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -93,6 +94,7 @@ def extract_steps(text: str, app: str) -> int:
     return None
 
 def process_ocr(image_url: str) -> dict:
+    start_time = time.time()
     logger.info(f"🔍 Processing OCR for: {image_url}")
     
     # Download & preprocess
@@ -143,10 +145,15 @@ def process_ocr(image_url: str) -> dict:
     m = re.search(r'(\d{2,3})\s*bpm', raw_text, re.I)
     if m: data['avg_heart_rate'] = f"{m.group(1)} bpm"
     
-    logger.info(f"✓ OCR completed: {app_class}, extracted {len(data)} fields")
+    processing_time_ms = int((time.time() - start_time) * 1000)
+    
+    logger.info(f"✓ OCR completed: {app_class}, extracted {len(data)} fields, time: {processing_time_ms}ms")
+    logger.info(f"Raw OCR: {raw_text}")
+    logger.info(f"Extracted data: {data}")
     
     return {
         "raw_ocr": raw_text,
         "extracted_data": data,
-        "app_class": app_class
+        "app_class": app_class,
+        "processing_time_ms": processing_time_ms
     }
