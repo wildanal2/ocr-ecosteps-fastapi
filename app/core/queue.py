@@ -50,9 +50,28 @@ async def ocr_worker():
                 "x-api-key": config("LARAVEL_API_KEY", default="")
             }
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(api_url, json=payload, headers=headers)
-                logger.info(f"✓ Result sent to Laravel: {response.status_code}")
+            logger.info(f"📤 Sending OCR result to webhook: {api_url}")
+            logger.info(f"📦 Payload: report_id={data.report_id}, user_id={data.user_id}, app_class={result['app_class']}")
+            
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(api_url, json=payload, headers=headers)
+                    logger.info(f"✅ Webhook response: {response.status_code} - {response.text[:200]}")
+                    
+                    if response.status_code == 200:
+                        logger.info(f"✓ Successfully sent OCR result for report {data.report_id}")
+                    else:
+                        logger.warning(f"⚠ Webhook returned non-200 status: {response.status_code}")
+                        
+            except httpx.ConnectError as e:
+                logger.error(f"🔌 Connection failed to {api_url}: {e}")
+                raise
+            except httpx.TimeoutException as e:
+                logger.error(f"⏰ Timeout sending to webhook: {e}")
+                raise
+            except Exception as e:
+                logger.error(f"❌ Unexpected error sending to webhook: {e}")
+                raise
 
             logger.info(f"✓ Completed OCR for report {data.report_id}")
         except Exception as e:
