@@ -12,20 +12,48 @@ queue_list = []
 
 def queue_task_check(data) -> bool:
     for item in queue_list:
-        if item.report_id == data.report_id:
+        if str(item.report_id) == str(data.report_id):
             item.s3_url = data.s3_url
             logger.info(f"⚠ Report {data.report_id} already in queue, updated s3_url")
             return True
-    logger.info(f"✓ Adding report {data.report_id} to queue")
-    queue_list.append(data)
     return False
+
+def queue_add(data):
+    queue_list.append(data)
+    logger.info(f"✓ Added report {data.report_id} to queue (total: {len(queue_list)})")
+
+def queue_clear():
+    global queue_list
+    count = len(queue_list)
+    queue_list.clear()
+    logger.info(f"✓ Cleared {count} items from queue_list")
+    return count
+
+def get_queue_list():
+    """Get current queue_list - ensures we get the actual global reference"""
+    global queue_list
+    return queue_list
 
 def queue_done(data):
     global queue_list
     before_count = len(queue_list)
-    queue_list = [item for item in queue_list if item.report_id != data.report_id]
+    
+    # Debug: Show what we're trying to remove
+    logger.info(f"Attempting to remove report_id: {data.report_id} (type: {type(data.report_id)})")
+    logger.info(f"Current queue_list before removal: {[(str(item.report_id), type(item.report_id)) for item in queue_list]}")
+    
+    # Convert both to string for comparison to handle int/str mismatch
+    queue_list = [item for item in queue_list if str(item.report_id) != str(data.report_id)]
     after_count = len(queue_list)
+    
     logger.info(f"✓ Removed report {data.report_id} from queue ({before_count} ➜ {after_count})")
+    logger.info(f"Queue_list after removal: {[str(item.report_id) for item in queue_list]}")
+    
+    # Debug log to verify removal
+    if before_count == after_count:
+        logger.error(f"✘ FAILED: Report {data.report_id} was not found in queue_list for removal!")
+        logger.error(f"Data object: {data}")
+        logger.error(f"Data type: {type(data)}")
 
 async def ocr_worker():
     while True:
@@ -58,11 +86,15 @@ async def ocr_worker():
         except Exception as e:
             logger.error(f"✘ Worker error: {e}")
         finally:
+            logger.info(f"Worker finally block: calling queue_done for report {data.report_id}")
             queue_done(data)
             task_queue.task_done()
+            logger.info(f"Worker finally block: completed for report {data.report_id}")
 
 @asynccontextmanager
 async def lifespan(app):
+    global queue_list
+    queue_list.clear()  # Clear any existing queue data on startup
     workers = []
     worker_count = config("WORKER_COUNT", cast=int, default=3)
     for _ in range(worker_count):
