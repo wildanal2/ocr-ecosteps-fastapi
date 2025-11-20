@@ -50,11 +50,15 @@ async def app_status():
 @router.post("/api/v1/ocr-ecosteps", dependencies=[Depends(verify_api_key)])
 async def submit_ocr_queue(data: OCRRequest):
     """Submit OCR document to processing queue"""
-    if await queue_task_check(data):
-        return {"message": "Laporan Anda telah diterima dan sedang dalam antrean verifikasi."}
-    await queue_add(data)
-    await task_queue.put(data)
-    return {"message": "Laporan Anda telah diterima dan dimasukkan ke dalam antrean verifikasi."}
+    try:
+        if await queue_task_check(data):
+            return {"message": "Laporan Anda telah diterima dan sedang dalam antrean verifikasi."}
+        await queue_add(data)
+        await task_queue.put(data)
+        return {"message": "Laporan Anda telah diterima dan dimasukkan ke dalam antrean verifikasi."}
+    except Exception as e:
+        logger.error(f"✘ Failed to add to queue: {e}")
+        return {"error": "Queue is full", "message": "Sistem sedang sibuk. Silakan coba lagi dalam beberapa saat."}, 503
 
 @router.post("/api/v1/ocr-ecosteps/dev", dependencies=[Depends(verify_api_key)])
 async def process_ocr_dev(data: OCRDevRequest):

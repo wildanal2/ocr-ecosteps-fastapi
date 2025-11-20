@@ -4,23 +4,27 @@ import easyocr
 import numpy as np
 import httpx
 import time
+import threading
 from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 reader = None
+reader_lock = threading.Lock()
 
 def get_reader():
     global reader
     if reader is None:
-        try:
-            import torch
-            gpu_available = torch.cuda.is_available()
-            logger.info(f"📦 Loading EasyOCR (GPU: {gpu_available})...")
-            reader = easyocr.Reader(['en'], gpu=gpu_available)
-            logger.info(f"✓ EasyOCR loaded with {'GPU' if gpu_available else 'CPU'}")
-        except ImportError:
-            logger.warning("⚠ PyTorch not found, using CPU")
-            reader = easyocr.Reader(['en'], gpu=False)
+        with reader_lock:
+            if reader is None:
+                try:
+                    import torch
+                    gpu_available = torch.cuda.is_available()
+                    logger.info(f"📦 Loading EasyOCR (GPU: {gpu_available})...")
+                    reader = easyocr.Reader(['en'], gpu=gpu_available)
+                    logger.info(f"✓ EasyOCR loaded with {'GPU' if gpu_available else 'CPU'}")
+                except ImportError:
+                    logger.warning("⚠ PyTorch not found, using CPU")
+                    reader = easyocr.Reader(['en'], gpu=False)
     return reader
 
 def download_image(url: str) -> np.ndarray:
