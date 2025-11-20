@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_URL="http://localhost:8000/api/v1/ocr-ecosteps"
+API_URL="https://ocr.moveforelephants.id/api/v1/ocr-ecosteps"
 API_KEY="sk_fast_ji2348sdf9snjamau66asd8nh3"
 ENVIRONMENT="staging"  # Change to "production" for production testing
 

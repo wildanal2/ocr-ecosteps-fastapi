@@ -20,13 +20,13 @@ failed_count = 0
 metrics_lock = threading.Lock()
 
 async def queue_task_check(data) -> bool:
-    with queue_list_lock:
-        for item in queue_list:
-            if str(item.report_id) == str(data.report_id):
-                item.s3_url = data.s3_url
-                logger.info(f"⚠ Report id:{data.report_id} already in queue, updated s3_url")
-                return True
-        return False
+    # Quick check without lock for performance
+    for item in queue_list:
+        if str(item.report_id) == str(data.report_id):
+            item.s3_url = data.s3_url
+            logger.info(f"⚠ Report id:{data.report_id} already in queue, updated s3_url")
+            return True
+    return False
 
 async def queue_add(data):
     # Check if queue is full
@@ -34,38 +34,33 @@ async def queue_add(data):
         logger.error(f"❌ Queue full! Rejecting report {data.report_id}")
         raise Exception("Queue is full. Please try again later.")
     
-    with queue_list_lock:
-        queue_list.append(data)
-        waiting = task_queue.qsize()
-        logger.info(f"✓ Added report id:{data.report_id} | Queue: {len(queue_list)} tracked, {waiting} waiting")
+    queue_list.append(data)
+    waiting = task_queue.qsize()
+    logger.info(f"✓ Added report id:{data.report_id} | Queue: {len(queue_list)} tracked, {waiting} waiting")
 
 async def queue_clear():
     global queue_list
-    with queue_list_lock:
-        count = len(queue_list)
-        queue_list.clear()
-        logger.info(f"✓ Cleared {count} items from queue_list")
-        return count
+    count = len(queue_list)
+    queue_list.clear()
+    logger.info(f"✓ Cleared {count} items from queue_list")
+    return count
 
 def get_queue_list():
-    """Get current queue_list - thread-safe copy"""
-    with queue_list_lock:
-        return list(queue_list)
+    """Get current queue_list - snapshot copy"""
+    return list(queue_list)
 
 async def queue_done(data, success: bool = True):
     global queue_list, processed_count, failed_count
-    with queue_list_lock:
-        before_count = len(queue_list)
-        queue_list = [item for item in queue_list if str(item.report_id) != str(data.report_id)]
-        after_count = len(queue_list)
-        waiting = task_queue.qsize()
-        logger.info(f"✓ [Queue] Removed report {data.report_id} | Remaining: {after_count} tracked, {waiting} waiting")
+    before_count = len(queue_list)
+    queue_list = [item for item in queue_list if str(item.report_id) != str(data.report_id)]
+    after_count = len(queue_list)
+    waiting = task_queue.qsize()
+    logger.info(f"✓ [Queue] Removed report {data.report_id} | Remaining: {after_count} tracked, {waiting} waiting")
     
-    with metrics_lock:
-        if success:
-            processed_count += 1
-        else:
-            failed_count += 1
+    if success:
+        processed_count += 1
+    else:
+        failed_count += 1
 
 async def ocr_worker(worker_id: int):
     while True:
@@ -84,6 +79,8 @@ async def ocr_worker(worker_id: int):
                 api_url = config("LARAVEL_API_URL_STAGING", default=config("LARAVEL_API_URL", default="http://localhost:8003"))
                 api_key = config("LARAVEL_API_KEY_STAGING", default=config("LARAVEL_API_KEY", default=""))
             
+            # Clean URL from any leading/trailing whitespace or '=' characters
+            api_url = api_url.strip().lstrip('=')
             api_url = api_url + "/api/ocr/result"
             
             payload = {
