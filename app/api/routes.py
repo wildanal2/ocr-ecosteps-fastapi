@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends
 from app.models.responses import HealthResponse, StatusResponse, AppStatusResponse
 from app.models.requests import OCRRequest
 from app.models.dev_requests import OCRDevRequest
+from app.models.local_requests import OCRLocalRequest
 from app.core.config import settings
 from app.core.logger import setup_logger
 from app.core.queue import task_queue, queue_add, queue_clear, queue_task_check
 from app.core.ocr_processor import process_ocr
+from app.core.ocr_processor_local import process_ocr_local
 from app.core.auth import verify_api_key
 from app.api.status import get_app_status
 
@@ -70,6 +72,18 @@ async def process_ocr_dev(data: OCRDevRequest):
         return result
     except Exception as e:
         logger.error(f"✘ Dev mode error: {e}")
+        raise
+
+@router.post("/api/v1/ocr-ecosteps/local", dependencies=[Depends(verify_api_key)])
+async def process_ocr_local_endpoint(data: OCRLocalRequest):
+    """Local file OCR processing for research/validation (no queue)"""
+    logger.info(f"🔬 Research mode: Processing local file {data.img_path}")
+    try:
+        result = await asyncio.to_thread(process_ocr_local, data.img_path, data.category)
+        logger.info(f"✓ Research mode: OCR completed")
+        return result
+    except Exception as e:
+        logger.error(f"✘ Research mode error: {e}")
         raise
 
 @router.post("/admin/clear-queue", dependencies=[Depends(verify_api_key)])

@@ -1,0 +1,34 @@
+# Ground truth generated from: ocr_validation_20251122_124557.csv
+GROUND_TRUTH = {
+    "WhatsApp Image 2025-11-10 at 12.02.53.jpeg": 646,  # Apple Health
+    "appple_12333.jpeg": 10818,  # Apple Health
+    "PHOTO-2025-11-10-14-38-52.jpg": 1211,  # Apple Health
+    "6FD6E71B-25FB-4B85-9ACE-6700C51E31DF_1_102_o.jpeg": 736,  # Apple Health
+    "0B9728E2-0BDD-46A1-B30F-9DC87A3E9FC1_1_102_o.jpeg": 401,  # Apple Health
+    "2025-11-21_232346_apple.png": 14578,  # Apple Health
+    "WhatsApp Image 2025-11-10 at 12.04.38.jpeg": 640,  # Apple Health
+    "huawei_1122.jpeg": 498,  # Huawei Health
+    "0F10CFFE-6730-4E44-97B8-DB622286EE24_1_102_o.jpeg": 395,  # Huawei Health
+    "huawei_.jpeg": 8376,  # Huawei Health
+    "huawei_12.jpeg": 376,  # Huawei Health
+    "499507250_24620207707567726_7253775697531596173_n.jpg": 7492,  # Samsung Health
+    "487050330_122219410556233106_4344152826971809940_n.jpg": 3139,  # Samsung Health
+    "2025-11-21_233701_samsung.jpg": 17029,  # Samsung Health
+    "2025-11-21_234704_samsung.jpg": 6155,  # Samsung Health
+    "518276064_1848906432355507_829745813346950310_n.jpg": 1035,  # Samsung Health
+    "499260930_24620208160901014_235439803812869537_n.jpg": 7492,  # Samsung Health
+    "2025-11-22_074136_apple.png": 12515,  # Apple Health Old
+    "461231351_8213834741985150_3244851168804879399_n.jpg": 5073,  # Google Fit
+    "G480QJzWEAAS-Wk.jpeg": 5548,  # Google Fit
+    "googlefit_20.55.11.jpeg": 827,  # Google Fit
+    "484822220_632215553109833_2297672382661628332_n.jpg": 7555,  # Google Fit
+    "google_fit_1122.jpeg": 16828,  # Google Fit
+    "Eu9JMj8VcAIaqB9.jpeg": 16669,  # Google Fit
+    "google_fit_11223.jpeg": 13924,  # Google Fit
+    "googlefit_123123panjang.jpeg": 2566,  # Google Fit
+    "494730497_9645386668876827_8603863592059978830_n.jpg": 16331,  # Google Fit
+    "gogle_fit_20.55.10.jpeg": 589,  # Google Fit
+    "509441112_3419385414870985_3021265621098066994_n.jpg": 18134,  # Google Fit
+    "2025-11-22_072807_fitbit.jpg": 11820,  # Fitbit
+    "20.55.12_fitbit.jpeg": 4324,  # Fitbit
+}
