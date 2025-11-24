@@ -35,106 +35,103 @@ def download_image(url: str) -> np.ndarray:
 
 def normalize_number(num_str: str) -> int:
     """Convert string number to int"""
-    return int(num_str.replace('.', '').replace(',', ''))
+    return int(num_str.replace('.', '').replace(',', '').replace(' ', ''))
 
 def classify_app(text: str) -> str:
     """Rule-based app classification"""
     text_lower = text.lower()
     
-    if 'heart pts' in text_lower or 'move min' in text_lower or 'poin kardio' in text_lower:
-        return 'Google Fit'
-    elif 'huawei' in text_lower or 'health+' in text_lower:
-        return 'Huawei Health'
-    elif 'samsung health' in text_lower or 'together' in text_lower or 'kebugaran' in text_lower or 'aktivitas harian' in text_lower or 'ingkh' in text_lower:
-        return 'Samsung Health'
-    elif 'fitbit' in text_lower:
+    if 'fitbit' in text_lower:
         return 'Fitbit'
-    elif 'activity' in text_lower or 'summary' in text_lower or 'fitness' in text_lower or 'workout' in text_lower:
-        return 'Apple Health'
+    elif 'heart pts' in text_lower or 'move min' in text_lower or 'poin kardio' in text_lower:
+        return 'Google Fit'
+    elif 'huawei' in text_lower or 'health+' in text_lower or 'kesehatan bergerak' in text_lower or "today's steps" in text_lower or 'todays steps' in text_lower:
+        return 'Huawei Health'
+    elif 'samsung health' in text_lower or 'daily activity' in text_lower or 'aktivitas harian' in text_lower:
+        return 'Samsung Health'
     else:
-        return 'Other'
+        return 'Apple Health'
 
 def extract_steps(text: str, app: str) -> int:
     """Extract step number using app-specific patterns"""
     
     if app == 'Apple Health':
-        # Pattern: "Today Today 10.818" or "Today 10,818"
-        m = re.search(r'Today\s+(?:Today\s+)?(\d{1,2}[\.,]\d{3})', text, re.I)
+        m = re.search(r'Hari Ini\s+Hari Ini\s+(\d{1,2}[\., ]\d{3})', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        # Pattern: "TOTAL 12.515 steps" or "12,515 steps"
-        m = re.search(r'(?:TOTAL|Total)\s+(\d{1,2}[\.,]\d{3})\s*steps', text, re.I)
+        m = re.search(r'Langkah\s+Jarak\s+(\d{1,2}[\., ]\d{3})', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        # Pattern: "401steps" (no space)
-        m = re.search(r'(\d{3,5})steps', text, re.I)
-        if m: return int(m.group(1))
+        m = re.search(r'Steps\s+Distance\s+(\d{1,2}[\., ]\d{3})', text, re.I)
+        if m: return normalize_number(m.group(1))
         
-        m = re.search(r'(\d+)\s*langkah', text, re.I)
-        if m: return int(m.group(1))
+        m = re.search(r'(?:Langkah|Steps)\s+\d{2}\.\d{2}\s+(\d{1,2}[\., ]\d{3})', text, re.I)
+        if m: return normalize_number(m.group(1))
         
-        m = re.search(r'Step Count.*?Today\s+Today\s+(\d{3,5})', text, re.I | re.DOTALL)
-        if m: return int(m.group(1))
+        m = re.search(r'Steps\s+Distance\s+(\d{1,2})[\., ](\d{3})', text, re.I)
+        if m: return int(m.group(1) + m.group(2))
         
-        m = re.search(r'Hari Ini\s+(\d{3,5})', text, re.I)
-        if m: return int(m.group(1))
+        m = re.search(r'(?:TOTAL|Total)\s+\d+\s*(?:KCAL|KKAL)\s+(?:Langkah|Steps).*?(\d{1,2}[\., ]\d{3})', text, re.I | re.DOTALL)
+        if m: return normalize_number(m.group(1))
+        
+        m = re.search(r'TOTAL\s+(\d{1,2}[\., ]\d{3})\s+\d{2}\s+\w+\s+\d{4}', text, re.I)
+        if m: return normalize_number(m.group(1))
         
     elif app == 'Google Fit':
-        # Pattern: "16.828 Poin Kardio" or "827 CHeart Pts" (OCR typo) - prioritize Heart Pts
-        m = re.search(r'(\d{1,2}[\.,]?\d{0,3})\s*(?:CHeart Pts|GHeart Pts|Heart Pts|Poin Kardio|Kcart Pis)', text, re.I)
-        if m: 
-            num_str = m.group(1)
-            if '.' in num_str or ',' in num_str:
-                return normalize_number(num_str)
-            else:
-                return int(num_str)
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s*Heart', text, re.I)
+        if m: return normalize_number(m.group(1))
         
-        # Pattern: "Langkah 16,828" or "ASteps 1,602"
-        m = re.search(r'(?:Langkah|ASteps)\s+(\d{1,2}[\.,]\d{3})', text, re.I)
+        m = re.search(r'(\d{1,2}[\.,]?\d{0,3})\s*(?:CHeart Pts|GHeart Pts|Heart Pts|Poin Kardio)', text, re.I)
+        if m: return normalize_number(m.group(1))
+        
+        m = re.search(r'Steps\s+(\d{1,2}[\., ]\d{3})', text, re.I)
         if m: return normalize_number(m.group(1))
         
     elif app == 'Huawei Health':
-        # Pattern: "395 /10.000 steps" - get number BEFORE slash
-        m = re.search(r'(\d{1,5})\s*/\s*\d+[\.,]?\d*\s*steps', text, re.I)
-        if m: return int(m.group(1))
-        
-        # Pattern: "Steps ... 8,376" - prioritize after "Steps" keyword
-        m = re.search(r'Steps.*?(\d{1,2}[\.,]\d{3})', text, re.I | re.DOTALL)
+        m = re.search(r'Langkah hari ini\s+(\d{1,2}[\., ]?\d{3})\s*/\s*\d', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        # Pattern: "8,376 steps" or "8.376 steps"
-        m = re.search(r'(\d{1,2}[\.,]\d{3})\s*steps', text, re.I)
+        m = re.search(r'Today\'?s steps\s+(\d{1,2}[\., ]?\d{3})\s*/\s*\d', text, re.I)
+        if m: return normalize_number(m.group(1))
+        
+        m = re.search(r'Todays steps\s+(\d{1,2}[\., ]?\d{3})\s*/\s*\d', text, re.I)
+        if m: return normalize_number(m.group(1))
+        
+        m = re.search(r'Stress\s+\d+\s+(\d{1,2}[\., ]?\d{3})\s+Wake', text, re.I)
         if m: return normalize_number(m.group(1))
         
     elif app == 'Samsung Health':
-        # Pattern: "3,139 steps" - NOT after slash (avoid target)
-        m = re.search(r'(?<!/)(\d{1,2}[\.,]\d{3})\s*steps', text, re.I)
+        m = re.search(r'Samsung Health\s+(\d{1,2}[\., ]?\d{2,3})\s*langkah', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        # Pattern: "1.035 langkah" or "1,035 langkah"
-        m = re.search(r'(\d{1,2}[\.,]\d{3})\s*langkah', text, re.I)
+        m = re.search(r'Edit home\s+(\d{1,2}[\., ]\d{3})\s*steps', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        # Pattern: "Steps ... 17,029" - get first number after Steps keyword
-        m = re.search(r'Steps.*?(\d{1,2}[\.,]\d{3})', text, re.I | re.DOTALL)
+        m = re.search(r'(?:Langkah|Steps)\s+(?:Waktu aktif|Active time).*?(\d{1,2}[\., ]\d{3})\s+\d+', text, re.I | re.DOTALL)
         if m: return normalize_number(m.group(1))
         
-        m = re.search(r'(\d[\.,]\d{3})\s*Ingkh', text, re.I)
+        m = re.search(r'(?:Kalori aktivitas|Activity calories)\s+(\d{1,2}[\., ]\d{3})', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        m = re.search(r'aktivitas\s+(\d[\.,]\d{3})', text, re.I)
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s+\d+%\s*/\s*\d', text, re.I)
         if m: return normalize_number(m.group(1))
     
     elif app == 'Fitbit':
-        # Pattern: "Today 11,820 Steps" - prioritize after "Today"
-        m = re.search(r'Today\s+(\d{1,2}[\.,]\d{3})\s*Steps', text, re.I)
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s*Langkah', text, re.I)
         if m: return normalize_number(m.group(1))
         
-        m = re.search(r'(\d{1,2}[\.,]\d{3})\s*steps', text, re.I)
+        m = re.search(r'fitbit.*?(\d{1,2}[\., ]\d{3})', text, re.I | re.DOTALL)
         if m: return normalize_number(m.group(1))
         
-        m = re.search(r'(\d{3,5})\s*steps', text, re.I)
-        if m: return int(m.group(1))
+        m = re.search(r'Today\s+(\d{1,2}[\., ]\d{3})\s*Steps', text, re.I)
+        if m: return normalize_number(m.group(1))
+    
+    # Fallback
+    m = re.search(r'(\d{1,2}[\., ]\d{3})\s*(?:steps|langkah)', text, re.I)
+    if m: return normalize_number(m.group(1))
+    
+    m = re.search(r'\b(\d{2,3})\s*(?:steps|langkah)', text, re.I)
+    if m: return int(m.group(1))
     
     return None
 
