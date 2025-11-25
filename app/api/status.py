@@ -60,7 +60,7 @@ def get_app_status(start_time: datetime) -> AppStatusResponse:
     
     # Processing Statistics
     processing_info = {
-        "supported_apps": ["Google Fit", "Samsung Health", "Huawei Health", "Apple Health", "Other"],
+        "supported_apps": ["Google Fit", "Samsung Health", "Huawei Health", "Apple Health", "Garmin Connect", "Other"],
         "extraction_fields": ["steps", "distance", "duration", "calories", "heart_rate", "pace", "speed"],
         "image_preprocessing": "resize_2x + color_conversion",
     }
