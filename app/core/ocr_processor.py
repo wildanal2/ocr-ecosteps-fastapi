@@ -59,17 +59,17 @@ def classify_app(text: str) -> str:
     if 'samsung health' in text_lower or 'daily activity' in text_lower or 'aktivitas harian' in text_lower:
         return 'Samsung Health'
     
-    # Google Fit - keyword unik
-    if 'heart pts' in text_lower or 'move min' in text_lower or 'poin kardio' in text_lower or 'menit bergerak' in text_lower:
+    # Google Fit - keyword unik (cek "Kcart Pis" untuk OCR error)
+    if 'heart pts' in text_lower or 'kcart pis' in text_lower or 'hcart pts' in text_lower or 'move min' in text_lower or 'poin kardio' in text_lower or 'menit bergerak' in text_lower:
         return 'Google Fit'
     
     # Huawei Health - keyword unik
     if 'huawei' in text_lower or 'health+' in text_lower:
         return 'Huawei Health'
     
-    # Cek "today's steps" atau "stress" + "wake" untuk Huawei
+    # Cek "today's steps X/Y" untuk Huawei (sebelum Apple Health)
     if "today's steps" in text_lower or 'todays steps' in text_lower:
-        if 'completed' in text_lower or 'activity rings' in text_lower or 'stress' in text_lower:
+        if '/' in text_lower:
             return 'Huawei Health'
     
     # Cek "Stress" + "Wake" pattern (Huawei specific)
@@ -80,8 +80,11 @@ def classify_app(text: str) -> str:
     if 'ingkh' in text_lower:
         return 'Samsung Health'
     
-    # Garmin Connect - keyword unik
-    if 'garmin' in text_lower or ('% of goal' in text_lower and 'daily timeline' in text_lower):
+    # Garmin Connect - keyword unik (tapi jangan salah deteksi jika ada "fitness+")
+    if 'garmin' in text_lower and 'fitness+' not in text_lower:
+        return 'Garmin Connect'
+    
+    if '% of goal' in text_lower and 'daily timeline' in text_lower:
         return 'Garmin Connect'
     
     # Huawei Health detail page - "Rekaman data aktivitas" + "Bergerak/Move" pattern
@@ -228,7 +231,41 @@ def extract_steps(text: str, app: str) -> int:
     """Extract step number using app-specific patterns"""
     
     if app == 'Apple Health':
-        # Pattern: "TOTAL 12.515 steps" atau "TOTAL 15.226 steps"
+        # Pattern: "Summary Steps Add Data W M 6M TOTAL 15.226" (summary page tanpa kata steps)
+        m = re.search(r'Summary Steps\s+Add Data.*?TOTAL\s+(\d{1,2}[\., ]\d{3})', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Steps Distance 17.02 12,83KM" (OCR error: 17.102 -> 17.02)
+        m = re.search(r'Steps\s+Distance\s+(\d{2}[\.,]\d{2})\s+\d{1,2}[\.,]\d+KM', text, re.I)
+        if m:
+            num_str = m.group(1).replace(',', '.').replace(' ', '')
+            # Convert 17.02 to 17020 (assume it's actually 17,020 or similar)
+            parts = num_str.split('.')
+            if len(parts) == 2 and len(parts[1]) == 2:
+                steps = int(parts[0]) * 1000 + int(parts[1]) * 10
+                if steps >= 100: return steps
+        
+        # Pattern: "Today Today 10.818 7,42KM" (untuk Apple Health dengan Step Count)
+        m = re.search(r'Step Count\s+Step Distance\s+Today\s+Today\s+(\d{1,2}[\., ]\d{3})\s+\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Hari Ini Hari Ini 15.076 13,04KM" (Indonesian)
+        m = re.search(r'Langkah\s+Jarak\s+(?:Langk__\s+)?Hari Ini\s+Hari Ini\s+(\d{1,2}[\., ]\d{3})\s+\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Steps Distance 17.102 12,83KM" (tanpa "Today")
+        m = re.search(r'Steps\s+Distance\s+(\d{1,2}[\., ]\d{3})\s+\d{1,2}[\.,]\d+', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "TOTAL 15.226 steps" (summary page)
         m = re.search(r'TOTAL\s+(\d{1,2}[\., ]\d{3})\s+steps', text, re.I)
         if m:
             steps = normalize_number(m.group(1))
@@ -307,6 +344,12 @@ def extract_steps(text: str, app: str) -> int:
             if steps >= 100: return steps
         
     elif app == 'Google Fit':
+        # Pattern: "2,566 Kcart Pis" (OCR error untuk "Heart Pts")
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s*(?:Kcart|Hcart)\s+Pis', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
         # Pattern: "589 Heart Pts" (3 digit tanpa separator) - cek dulu sebelum yang lain
         m = re.search(r'^.*?(\d{3})\s+Heart\s+Pts', text, re.I)
         if m:
@@ -332,6 +375,30 @@ def extract_steps(text: str, app: str) -> int:
             if steps >= 100: return steps
         
     elif app == 'Huawei Health':
+        # Pattern: "Today's steps 8,376/4,000 steps" - ambil angka SEBELUM / (prioritas tertinggi)
+        m = re.search(r'Today\'?s steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Todays steps 3,540/10,000 steps" (tanpa apostrof)
+        m = re.search(r'Todays steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Today's steps 395 /10.000 steps" (tanpa separator ribuan)
+        m = re.search(r'Today\'?s steps\s+(\d{3,5})\s+/', text, re.I)
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Todays steps 3,540/10,000" (tanpa kata steps di akhir)
+        m = re.search(r'Todays steps\s+(\d{1,2}[\., ]\d{3})\s*/', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
         # Pattern: "Langkah Jarak Naik tangga 5.684 langkah" (Huawei detail page)
         m = re.search(r'Langkah\s+Jarak\s+(?:Naik tangga\s+)?(\d{1,2}[\., ]\d{3})\s*langkah', text, re.I)
         if m:
@@ -346,18 +413,6 @@ def extract_steps(text: str, app: str) -> int:
         
         # Pattern: "9,708 steps" atau "12,477 steps" (standalone dengan separator)
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s*steps', text, re.I)
-        if m:
-            steps = normalize_number(m.group(1))
-            if steps >= 100: return steps
-        
-        # Pattern: "Today's steps 395 /10.000 steps" (tanpa separator ribuan) - cek dulu
-        m = re.search(r'Today\'?s steps\s+(\d{3,5})\s+/', text, re.I)
-        if m:
-            steps = int(m.group(1))
-            if steps >= 100: return steps
-        
-        # Pattern: "Today's steps 8,376/4,000 steps" - ambil angka pertama sebelum /
-        m = re.search(r'Today\'?s steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
         if m:
             steps = normalize_number(m.group(1))
             if steps >= 100: return steps
@@ -401,11 +456,23 @@ def extract_steps(text: str, app: str) -> int:
             if steps >= 100: return steps
         
     elif app == 'Samsung Health':
+        # Pattern: "Samsung Health 77 langkah" (very low steps)
+        m = re.search(r'Samsung Health\s+(\d{2,3})\s*langkah', text, re.I)
+        if m:
+            steps = int(m.group(1))
+            if steps >= 50: return steps
+        
+        # Pattern: "1.035 langkah 10 menit 41kkal 1.083" - ambil yang pertama
+        m = re.search(r'Samsung Health\s+[A-Z]\s+(\d{1,2}[\., ]\d{3})\s*langkah', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 50: return steps
+        
         # Pattern: "Steps Active time Activity calories 7.492 63 299"
         m = re.search(r'(?:Langkah|Steps)\s+(?:Waktu aktif|Active time)\s+(?:Kalori aktivitas|Activity calories)\s+(\d{1,2}[\., ]\d{3})\s+\d+\s+\d+', text, re.I)
         if m:
             steps = normalize_number(m.group(1))
-            if steps >= 100: return steps
+            if steps >= 50: return steps
         
         # Pattern: "Samsung Health 77 langkah"
         m = re.search(r'Samsung Health\s+(\d{1,5})\s*langkah', text, re.I)
