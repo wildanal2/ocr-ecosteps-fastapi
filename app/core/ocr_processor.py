@@ -84,6 +84,11 @@ def classify_app(text: str) -> str:
     if 'garmin' in text_lower or ('% of goal' in text_lower and 'daily timeline' in text_lower):
         return 'Garmin Connect'
     
+    # Huawei Health detail page - "Rekaman data aktivitas" + "Bergerak/Move" pattern
+    if 'rekaman data aktivitas' in text_lower or 'activity records' in text_lower:
+        if 'bergerak' in text_lower or ('move' in text_lower and 'kcal' in text_lower):
+            return 'Huawei Health'
+    
     # Apple Health - default
     return 'Apple Health'
 
@@ -106,7 +111,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 if ',' in text or ('.' in text and text.count('.') == 1 and len(text) > 3):
                     num_text = text.replace(',', '').replace('.', '').replace(' ', '')
                     if num_text.isdigit() and 3 <= len(num_text) <= 5:
-                        candidates_with_sep.append((j, int(num_text)))
+                        num_val = int(num_text)
+                        if num_val >= 100:
+                            candidates_with_sep.append((j, num_val))
             
             # If found numbers with separators, return the closest one to Heart Pts
             if candidates_with_sep:
@@ -119,7 +126,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 text = results[j][1]
                 num_text = text.replace(',', '').replace('.', '').replace(' ', '')
                 if num_text.isdigit() and 3 <= len(num_text) <= 5:
-                    return int(num_text)
+                    num_val = int(num_text)
+                    if num_val >= 100:
+                        return num_val
     
     elif app == 'Huawei Health':
         # Check if "steps XXX /X.XXX steps" in single item
@@ -129,7 +138,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 import re
                 m = re.search(r'steps\s+(\d{3,5})\s*/', text, re.I)
                 if m:
-                    return int(m.group(1))
+                    num_val = int(m.group(1))
+                    if num_val >= 100:
+                        return num_val
         
         # Find "Stress" then "Wake", number is between them
         stress_idx = wake_idx = -1
@@ -145,7 +156,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
             for j in range(stress_idx+1, wake_idx):
                 num_text = results[j][1].replace(',', '').replace('.', '').replace(' ', '')
                 if num_text.isdigit() and 3 <= len(num_text) <= 5:
-                    return int(num_text)
+                    num_val = int(num_text)
+                    if num_val >= 100:
+                        return num_val
     
     elif app == 'Apple Health':
         # Find "Today" keyword appearing twice
@@ -163,7 +176,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 if ',' in text or '.' in text:
                     num_text = text.replace(',', '').replace('.', '').replace(' ', '')
                     if num_text.isdigit() and 3 <= len(num_text) <= 5:
-                        return int(num_text)
+                        num_val = int(num_text)
+                        if num_val >= 100:
+                            return num_val
     
     elif app == 'Samsung Health':
         # Check if "X.XXX Ingkh" in single item
@@ -174,7 +189,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 m = re.search(r'(\d[\., ]\d{3})\s*ingkh', text, re.I)
                 if m:
                     num_text = m.group(1).replace(',', '').replace('.', '').replace(' ', '')
-                    return int(num_text)
+                    num_val = int(num_text)
+                    if num_val >= 100:
+                        return num_val
     
     elif app == 'Garmin Connect':
         # Find "% of Goal" keyword
@@ -194,7 +211,9 @@ def extract_steps_from_layout(results: list, app: str) -> int:
                 if ',' in text or ('.' in text and text.count('.') == 1 and len(text) > 3):
                     num_text = text.replace(',', '').replace('.', '').replace(' ', '')
                     if num_text.isdigit() and 4 <= len(num_text) <= 5:
-                        candidates.append((j, int(num_text)))
+                        num_val = int(num_text)
+                        if num_val >= 100:
+                            candidates.append((j, num_val))
             
             # Return the FIRST number (furthest from "% of Goal") = steps
             if len(candidates) >= 2:
@@ -211,166 +230,264 @@ def extract_steps(text: str, app: str) -> int:
     if app == 'Apple Health':
         # Pattern: "TOTAL 12.515 steps" atau "TOTAL 15.226 steps"
         m = re.search(r'TOTAL\s+(\d{1,2}[\., ]\d{3})\s+steps', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Hari Ini Hari Ini 1.045 0,67KM"
         m = re.search(r'Hari Ini\s+Hari Ini\s+(\d{1,2}[\., ]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Langkah Jarak 2.802 1,83KM"
         m = re.search(r'Langkah\s+Jarak\s+(\d{1,2}[\., ]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps Distance 17.102 12,83KM"
         m = re.search(r'Steps\s+Distance\s+(\d{1,2}[\., ]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Langkah 16.56 1.836langkah" atau "Steps 13.30 1.990 steps"
         m = re.search(r'(?:Langkah|Steps)\s+\d{2}\.\d{2}\s+(\d{1,2}[\., ]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "640 0,47kM" di awal (untuk gambar dengan format berbeda)
         m = re.search(r'\b(\d{3})\s+0[\.,]\d+\s*k[Mm]', text)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "646 langkah" atau "736 0,46km"
         m = re.search(r'\b(\d{3})\s+(?:langkah|0[\.,]\d+\s*km)', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Today Today 10.818 7,42km" (untuk appple_12333.jpeg)
         m = re.search(r'Today\s+Today\s+(\d{1,2}[\., ]\d{3})\s+\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Today 14.578 9,99kM" (untuk 2025-11-21_232346_apple.png)
         m = re.search(r'Today\s+(\d{1,2}[\., ]\d{3})\s+\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps Distance 17.102 12,83KM" (untuk 2025-11-24_192531_apple.jpg)
         m = re.search(r'Steps\s+Distance\s+(\d{2}[\., ]\d{3})\s+\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "TOTAL 15.226 steps" (untuk 2025-11-24_220330_apple.png)
         m = re.search(r'TOTAL\s+(\d{2}[\., ]\d{3})\s+steps', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Today Today 1.211 0,94kM" (untuk PHOTO-2025-11-10-14-38-52.jpg)
         m = re.search(r'Today\s+Today\s+(\d[\., ]\d{3})\s+0[\.,]\d+', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps Distance 17.102 12,83KM" (5 digit)
         m = re.search(r'Steps\s+Distance\s+(\d{2}[\., ]\d{3})\s+\d{2}[\.,]\d+', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
     elif app == 'Google Fit':
         # Pattern: "589 Heart Pts" (3 digit tanpa separator) - cek dulu sebelum yang lain
         m = re.search(r'^.*?(\d{3})\s+Heart\s+Pts', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "16,331 Heart Pts" atau "7,555 Heart Pts" (5 digit)
         m = re.search(r'(\d{2}[\., ,]\d{3})\s+Heart\s+Pts', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "2,566 Heart Pts" atau "2,566 Poin Kardio" (4 digit)
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s*(?:Heart|Hcart|Poin Kardio)', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps 1,571" atau "Stops 1.,602"
         m = re.search(r'(?:Steps|Stops|Langkah)\s+(\d{1,2}[\.,]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
     elif app == 'Huawei Health':
+        # Pattern: "Langkah Jarak Naik tangga 5.684 langkah" (Huawei detail page)
+        m = re.search(r'Langkah\s+Jarak\s+(?:Naik tangga\s+)?(\d{1,2}[\., ]\d{3})\s*langkah', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Distance Stair climbing 2.637 steps" (Huawei detail page English)
+        m = re.search(r'Distance\s+(?:Stair climbing\s+)?(\d{1,2}[\., ]\d{3})\s*steps', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "9,708 steps" atau "12,477 steps" (standalone dengan separator)
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s*steps', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
         # Pattern: "Today's steps 395 /10.000 steps" (tanpa separator ribuan) - cek dulu
         m = re.search(r'Today\'?s steps\s+(\d{3,5})\s+/', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Today's steps 8,376/4,000 steps" - ambil angka pertama sebelum /
         m = re.search(r'Today\'?s steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Langkah hari ini 5.117/10.000 langkah"
         m = re.search(r'Langkah hari ini\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Langkah hari ini 824/7.000 langkah" (tanpa separator ribuan)
         m = re.search(r'Langkah hari ini\s+(\d{3,5})\s*/\s*\d', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Todays steps 5,498/10,000 steps"
         m = re.search(r'Todays steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps Mood 05.06 Stress 50 735 Wake" - ambil angka sebelum Wake
         m = re.search(r'Stress\s+\d+\s+(\d{3,5})\s+Wake', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Today's steps" tanpa angka setelahnya, cari di tempat lain
         if "today's steps" in text.lower() or 'todays steps' in text.lower():
             # Cari angka 3-5 digit yang mungkin steps
             m = re.search(r'\b(\d{3,5})\s+Wake', text, re.I)
-            if m: return int(m.group(1))
+            if m:
+                steps = int(m.group(1))
+                if steps >= 100: return steps
         
         # Pattern: "Add record 8,376 steps Normal" (untuk huawei_.jpeg)
         m = re.search(r'Add record\s+(\d{1,2}[\., ]\d{3})', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
     elif app == 'Samsung Health':
         # Pattern: "Steps Active time Activity calories 7.492 63 299"
         m = re.search(r'(?:Langkah|Steps)\s+(?:Waktu aktif|Active time)\s+(?:Kalori aktivitas|Activity calories)\s+(\d{1,2}[\., ]\d{3})\s+\d+\s+\d+', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Samsung Health 77 langkah"
         m = re.search(r'Samsung Health\s+(\d{1,5})\s*langkah', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Edit home 2,680 steps"
         m = re.search(r'Edit home\s+(\d{1,2}[\., ]\d{3})\s*steps', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Steps Active time Activity calories 725 8 28"
         m = re.search(r'(?:Langkah|Steps)\s+(?:Waktu aktif|Active time)\s+(?:Kalori aktivitas|Activity calories)\s+(\d{3,5})\s+\d+\s+\d+', text, re.I)
-        if m: return int(m.group(1))
+        if m:
+            steps = int(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "1,862 37% /5,000 steps"
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s+\d+%\s*/\s*\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "7.492 Ingkh Target: 10.000" (untuk 499507250_24620207707567726_7253775697531596173_n.jpg)
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s+(?:Ingkh|langkah)\s+Target', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "Active time Activity calories 13,130 98 941" (untuk 2025-11-24_174611_samsung.jpg)
         m = re.search(r'Active time\s+Activity calories\s+(\d{1,2}[\., ]\d{3})\s+\d+\s+\d+', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "7.492 Ingkh" atau "Langkah < ... 7.492 Ingkh"
         m = re.search(r'(\d[\., ]\d{3})\s+Ingkh', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
     
     elif app == 'Fitbit':
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s*Langkah', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         m = re.search(r'fitbit.*?(\d{1,2}[\., ]\d{3})', text, re.I | re.DOTALL)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         m = re.search(r'Today\s+(\d{1,2}[\., ]\d{3})\s*Steps', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
     
     elif app == 'Garmin Connect':
         # Pattern: "9,920 5,000 198% of Goal" or "10.514 6.180 170% of Goal"
         m = re.search(r'(\d{1,2}[\., ]\d{3})\s+\d[\., ]\d{3}\s+\d+%\s+of\s+Goal', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
         
         # Pattern: "November 9,920 5,000"
         m = re.search(r'November\s+(\d{1,2}[\., ]\d{3})\s+\d', text, re.I)
-        if m: return normalize_number(m.group(1))
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
     
     # Fallback patterns
     m = re.search(r'(\d{1,2}[\., ]\d{3})\s*(?:steps|langkah)', text, re.I)
-    if m: return normalize_number(m.group(1))
+    if m:
+        steps = normalize_number(m.group(1))
+        if steps >= 100: return steps
     
     m = re.search(r'\b(\d{2,5})\s*(?:steps|langkah)', text, re.I)
-    if m: return int(m.group(1))
+    if m:
+        steps = int(m.group(1))
+        if steps >= 100: return steps
     
     return None
 
