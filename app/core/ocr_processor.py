@@ -67,6 +67,10 @@ def classify_app(text: str) -> str:
     if 'huawei' in text_lower or 'health+' in text_lower:
         return 'Huawei Health'
     
+    # Huawei Health step page - "Kemajuan target" atau "Goal progress"
+    if 'kemajuan target' in text_lower or 'goal progress' in text_lower:
+        return 'Huawei Health'
+    
     # Cek "today's steps X/Y" untuk Huawei (sebelum Apple Health)
     if "today's steps" in text_lower or 'todays steps' in text_lower:
         if '/' in text_lower:
@@ -375,6 +379,24 @@ def extract_steps(text: str, app: str) -> int:
             if steps >= 100: return steps
         
     elif app == 'Huawei Health':
+        # Pattern: "Kemajuan target Edit 3.011/10.000 langkah" (Step page Indonesian)
+        m = re.search(r'Kemajuan target\s+Edit\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "Goal progress Edit 16.452/10.000 steps" (Step page English)
+        m = re.search(r'Goal progress\s+Edit\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
+        # Pattern: "6.170 langkah" (standalone di step page)
+        m = re.search(r'(\d{1,2}[\., ]\d{3})\s*langkah\s+\d{1,4}\s+\d{2,4}\s+\d{2,4}\s+\d{2,4}', text, re.I)
+        if m:
+            steps = normalize_number(m.group(1))
+            if steps >= 100: return steps
+        
         # Pattern: "Today's steps 8,376/4,000 steps" - ambil angka SEBELUM / (prioritas tertinggi)
         m = re.search(r'Today\'?s steps\s+(\d{1,2}[\., ]\d{3})\s*/\s*\d', text, re.I)
         if m:
